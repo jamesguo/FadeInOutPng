@@ -13,10 +13,11 @@
 #include <pngconf.h>
 #include <pnglibconf.h>
 
-#include <stddef.h>
+#include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 #include <zlib.h>
 
 #define TAG "James::JNI"
@@ -28,6 +29,8 @@
 
 unsigned char pngData[512*512*4]={0};
 int alpha = 255;
+
+
 typedef struct {
     double  renderTime;
     double  frameTime;
@@ -127,60 +130,110 @@ stats_endFrame( Stats*  s )
     s->lastTime = now;
 }
 void process_png(char *file_name) {
+	char header[8];
 	png_structp png_ptr;
 	png_infop info_ptr;
 	unsigned int sig_read = 0;
 	png_uint_32 width, height;
 	int bit_depth, color_type, interlace_type;
+	int number_of_passes;
+	int x, y;
 	FILE *fp;
 	LOGE("enter process_png");
 	if ((fp = fopen(file_name, "rb")) == NULL) {
 		LOGE("open file fail");
 		return;
 	}
-	fseek(fp, 0L, SEEK_SET);
+
+	if (png_sig_cmp(header, 0, 8))
+		LOGE("[read_png_file] File %s is not recognized as a PNG file",
+				file_name);
+
+	/* initialize stuff */
 	LOGE("enter png_create_read_struct");
-	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL,
-			NULL);
+	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 
-	if (png_ptr == NULL) {
-		return;
-	}
+	if (!png_ptr)
+		LOGE("[read_png_file] png_create_read_struct failed");
+
 	LOGE("enter png_create_info_struct");
-	png_ptr = png_create_info_struct(png_ptr);
-	if (png_ptr == NULL) {
-		png_destroy_read_struct(&png_ptr, NULL, NULL);
-		return;
-	}
+	info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr)
+		LOGE("[read_png_file] png_create_info_struct failed");
 
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		png_destroy_read_struct(&png_ptr, &png_ptr, NULL);
-		return;
-	}
+	if (setjmp(png_jmpbuf(png_ptr)))
+		LOGE("[read_png_file] Error during init_io");
+
 	LOGE("enter png_init_io");
 	png_init_io(png_ptr, fp);
-//	LOGE("enter png_set_sig_bytes");
-//	png_set_sig_bytes(png_ptr, 8);
-//	LOGE("enter png_read_png");
-//	png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_EXPAND, 0);
-
+	LOGE("enter png_set_sig_bytes");
+	png_set_sig_bytes(png_ptr, 8);
 
 	LOGE("enter png_read_info");
 	png_read_info(png_ptr, info_ptr);
-	LOGE("enter png_get_IHDR");
-	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
-			&color_type, &interlace_type, NULL, NULL);
 
-//	LOGE("enter png_read_update_info");
-//	png_read_update_info(png_ptr,info_ptr);
-	width = info_ptr->width;
-	height = info_ptr->height;
+	width = png_get_image_width(png_ptr, info_ptr);
+	height = png_get_image_height(png_ptr, info_ptr);
+	color_type = png_get_color_type(png_ptr, info_ptr);
+	bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+
 	LOGE("png width = %d,height = %d",width,height);
-	png_bytep* row_pointers = png_get_rows(png_ptr, info_ptr);
-//	png_bytep* row_pointers = (png_bytep *) malloc(png_get_rowbytes(png_ptr, info_ptr));
 
-	unsigned char rgba[512*512*4] = { 0 };
+	number_of_passes = png_set_interlace_handling(png_ptr);
+	LOGE("enter png_read_update_info");
+	png_read_update_info(png_ptr, info_ptr);
+
+	/* read file */
+	if (setjmp(png_jmpbuf(png_ptr)))
+		LOGE("[read_png_file] Error during read_image");
+	png_bytep* row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * height);
+	for (y = 0; y < height; y++)
+		row_pointers[y] = (png_byte*) malloc(png_get_rowbytes(png_ptr, info_ptr));
+	LOGE("enter png_read_image");
+	png_read_image(png_ptr, row_pointers);
+	fclose(fp);
+//	fseek(fp, 0L, SEEK_SET);
+//	LOGE("enter png_create_read_struct");
+//	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL,
+//			NULL);
+//
+//	if (png_ptr == NULL) {
+//		return;
+//	}
+//	LOGE("enter png_create_info_struct");
+//	png_ptr = png_create_info_struct(png_ptr);
+//	if (png_ptr == NULL) {
+//		png_destroy_read_struct(&png_ptr, NULL, NULL);
+//		return;
+//	}
+//
+//	if (setjmp(png_jmpbuf(png_ptr))) {
+//		png_destroy_read_struct(&png_ptr, &png_ptr, NULL);
+//		return;
+//	}
+//	LOGE("enter png_init_io");
+//	png_init_io(png_ptr, fp);
+////	LOGE("enter png_set_sig_bytes");
+////	png_set_sig_bytes(png_ptr, 8);
+////	LOGE("enter png_read_png");
+////	png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_EXPAND, 0);
+//
+//
+//	LOGE("enter png_read_info");
+//	png_read_info(png_ptr, info_ptr);
+//	LOGE("enter png_get_IHDR");
+//	png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth,
+//			&color_type, &interlace_type, NULL, NULL);
+//
+////	LOGE("enter png_read_update_info");
+////	png_read_update_info(png_ptr,info_ptr);
+//	width = info_ptr->width;
+//	height = info_ptr->height;
+//	LOGE("png width = %d,height = %d",width,height);
 //	png_bytep* row_pointers = png_get_rows(png_ptr, info_ptr);
+////	png_bytep* row_pointers = (png_bytep *) malloc(png_get_rowbytes(png_ptr, info_ptr));
+//
+	unsigned char rgba[512*512*4] = { 0 };
 	int pos = 0;
 	int row = 0;
 	int col = 0;
@@ -196,13 +249,13 @@ void process_png(char *file_name) {
 			LOGE("alpha value %d",row_pointers[row][col + 3]);
 		}
 	}
-//	LOGE("enter memset");
-//	memset(pngData, width * height * 4, sizeof(unsigned char*));
-	LOGE("enter memcpy");
-	memcpy(pngData, rgba, 512*512*4);
-	LOGE("enter png_destroy_read_struct");
-	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	fclose(fp);
+////	LOGE("enter memset");
+////	memset(pngData, width * height * 4, sizeof(unsigned char*));
+//	LOGE("enter memcpy");
+//	memcpy(pngData, rgba, 512*512*4);
+//	LOGE("enter png_destroy_read_struct");
+//	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+//	fclose(fp);
 }
 
 int check_if_png(FILE *fp) {

@@ -32,7 +32,7 @@ public class MainActivity extends FragmentActivity {
 		AssetManager assetManager = getAssets();
 		InputStream inputStream = null;
 		try {
-			inputStream = assetManager.open("ic_launcher-web.png");
+			inputStream = assetManager.open("ic_launcher.png");
 			File file = new File(getApplicationContext().getFilesDir().getAbsolutePath() + File.separator + "ic_launcher-web.png");
 			OutputStream outputStream = new FileOutputStream(file);
 			int bytesRead;
