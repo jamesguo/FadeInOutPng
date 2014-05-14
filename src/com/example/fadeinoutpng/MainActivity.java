@@ -6,15 +6,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.os.Bundle;
-import android.os.Environment;
+import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
-import android.view.Display;
 import android.view.View;
 
 public class MainActivity extends FragmentActivity {
@@ -48,29 +47,36 @@ public class MainActivity extends FragmentActivity {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        setContentView(new PlasmaView(this, 512, 512));
+		setContentView(new FadeInOutView(this, 512, 512));
 	}
 
 	public static native void loadImage(String filepath);
 
-	public static native void startFade(Bitmap bitmap, long time_ms);
+	public static native void startFade(Bitmap bitmap);
 }
 
-class PlasmaView extends View {
-	private Bitmap mBitmap;
-	private long mStartTime;
+class FadeInOutView extends View {
+	private final Bitmap mBitmap;
 
-	public PlasmaView(Context context, int width, int height) {
+	Handler handler = new Handler();
+
+	public FadeInOutView(Context context, int width, int height) {
 		super(context);
 		mBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-		mStartTime = System.currentTimeMillis();
 	}
 
+	@SuppressLint("DrawAllocation")
 	@Override
 	protected void onDraw(Canvas canvas) {
-		// canvas.drawColor(0xFFCCCCCC);
-		MainActivity.startFade(mBitmap, System.currentTimeMillis() - mStartTime);
+		canvas.drawColor(0xFFFFFFFF);
+		MainActivity.startFade(mBitmap);
 		canvas.drawBitmap(mBitmap, 0, 0, null);
-		invalidate();
+		handler.postDelayed(new Runnable() {
+
+			@Override
+			public void run() {
+				invalidate();
+			}
+		}, 100);
 	}
 }
