@@ -19,11 +19,12 @@ src/pngtrans.c\
 src/pngwio.c\
 src/pngwrite.c\
 src/pngwtran.c\
-src/pngwutil.c
+src/pngwutil.c\
+customepng.c
  
 LOCAL_C_INCLUDES := $(LOCAL_PATH) \
                     $(LOCAL_PATH)/src
                    
-LOCAL_LDLIBS := -lz  -llog
+LOCAL_LDLIBS := -lz  -lm -llog -ljnigraphics
   
 include $(BUILD_SHARED_LIBRARY) 
