@@ -121,8 +121,8 @@ void process_png(char *file_name) {
 //	LOGE("enter memcpy");
 	memcpy(pngData, rgba, 512 * 512 * 4);
 	free(row_pointers);
-//	LOGE("enter png_destroy_read_struct");
-//	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+	LOGE("enter png_destroy_read_struct");
+	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
 //	fclose(fp);
 }
 
